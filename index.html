@@ -275,57 +275,69 @@
 
     /**
      * openNavigation(btn, destCoords, destAddress, originalMapUrl)
-     * Tries to get the user's current GPS location, then opens Google Maps
-     * directions from current location to the venue.
      *
-     * Priority:
-     *  1. If destCoords (lat,lng) available  → use &destination=lat,lng
-     *  2. Else use &destination=encodedAddress
-     *  3. If geolocation denied/unavailable  → open venue-only Maps URL
+     * FIX: Mobile browsers block window.open() called from async callbacks.
+     * Solution: open window.open() SYNCHRONOUSLY at the moment of click,
+     * then update its location.href after GPS resolves.
      */
     function openNavigation(btn, destCoords, destAddress, originalMapUrl) {
       const originalHTML = btn.innerHTML;
       btn.className = 'nav-btn nav-btn-loading';
       btn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M12 2a10 10 0 100 20A10 10 0 0012 2z" />
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="animation:spin 1s linear infinite">
+          <circle cx="12" cy="12" r="10" stroke-width="3" stroke-dasharray="40 20"/>
         </svg>
         กำลังระบุตำแหน่ง...`;
 
       function buildUrl(originLat, originLng) {
         const dest = destCoords ? destCoords : destAddress;
-        // Google Maps directions URL
         if (originLat !== null) {
+          // นำทางจากตำแหน่งปัจจุบัน → ปลายทาง
           return `https://www.google.com/maps/dir/${originLat},${originLng}/${dest}`;
         } else {
-          // No origin → open destination only (fallback to original map URL or search)
+          // ไม่มีตำแหน่งต้นทาง → เปิดแค่ปลายทาง
           if (originalMapUrl) return originalMapUrl;
           return `https://www.google.com/maps/search/?api=1&query=${destAddress}`;
         }
       }
 
-      function openFinal(lat, lng) {
-        const url = buildUrl(lat, lng);
+      function restoreBtn() {
         btn.className = 'nav-btn nav-btn-google';
         btn.innerHTML = originalHTML;
-        window.open(url, '_blank');
       }
 
       if (!navigator.geolocation) {
-        // Browser doesn't support geolocation
-        openFinal(null, null);
+        // Browser ไม่รองรับ geolocation → เปิด Maps แบบไม่มีต้นทาง
+        const url = buildUrl(null, null);
+        restoreBtn();
+        window.open(url, '_blank');
         return;
       }
 
+      // ✅ KEY FIX: เปิด window ทันทีที่กดปุ่ม (synchronous = ไม่โดน popup blocker)
+      // แล้วค่อยเปลี่ยน URL ของ window นั้นเมื่อได้ GPS
+      const mapsWindow = window.open('', '_blank');
+
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          openFinal(pos.coords.latitude, pos.coords.longitude);
+          const url = buildUrl(pos.coords.latitude, pos.coords.longitude);
+          restoreBtn();
+          if (mapsWindow && !mapsWindow.closed) {
+            mapsWindow.location.href = url;
+          } else {
+            // กรณี window ถูกปิดไปแล้ว ลองเปิดใหม่
+            window.open(url, '_blank');
+          }
         },
         (err) => {
-          // Permission denied or error → open without origin
           console.warn('Geolocation error:', err.message);
-          openFinal(null, null);
+          const url = buildUrl(null, null);
+          restoreBtn();
+          if (mapsWindow && !mapsWindow.closed) {
+            mapsWindow.location.href = url;
+          } else {
+            window.open(url, '_blank');
+          }
         },
         { timeout: 10000, maximumAge: 60000, enableHighAccuracy: true }
       );
