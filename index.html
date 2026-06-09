@@ -41,6 +41,35 @@
     .nav-btn-google:active {
       transform: scale(0.97);
     }
+    .order-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      min-width: 86px;
+      padding: 7px 12px;
+      border: 2px solid #ef4444;
+      border-radius: 10px;
+      background: #fff;
+      color: #dc2626;
+      font-size: 0.85rem;
+      font-weight: 600;
+      line-height: 1;
+      text-decoration: none;
+      box-shadow: 0 2px 8px rgba(239,68,68,0.12);
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    .order-btn:hover {
+      background: #fef2f2;
+      border-color: #dc2626;
+      color: #b91c1c;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(239,68,68,0.22);
+    }
+    .order-btn:active {
+      transform: scale(0.97);
+    }
     .nav-btn-loading {
       background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
       color: #fff;
@@ -240,11 +269,22 @@
             </svg>
             นำทางสถานที่เลือกตั้ง
           </a>`;
+        const orderHref = (item.orderUrl && item.orderUrl.trim() !== '')
+          ? item.orderUrl.trim()
+          : '';
+        const orderBtn = orderHref
+          ? `<a href="${orderHref}" target="_blank" rel="noopener" class="order-btn">ดูคำสั่ง</a>`
+          : '';
 
         div.innerHTML += `
           <div class="pl-3">
-            <h3 class="font-bold text-lg text-gray-800">${item.fullName}</h3>
-            <p class="text-sm text-blue-600 font-medium mb-2">${item.position}</p>
+            <div class="flex items-start justify-between gap-3 mb-2">
+              <div class="min-w-0">
+                <h3 class="font-bold text-lg text-gray-800 leading-snug">${item.fullName}</h3>
+                <p class="text-sm text-blue-600 font-medium">${item.position}</p>
+              </div>
+              ${orderBtn}
+            </div>
             
             <div class="text-sm text-gray-600 space-y-1 bg-gray-50 p-3 rounded-lg">
               <div class="flex justify-between">
